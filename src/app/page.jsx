@@ -23,7 +23,7 @@ import Image from "next/image";
 
 // Real BookMyShow Kochi Venue Presets
 const KOCHI_THEATRE_PRESETS = [
-  { theatreCode: "PVLC", theatreName: "PVR: Lulu, Kochi", matchKeyword: "pvr-lulu-kochi-audi-4-9-all-new-3d-projection" },
+  { theatreCode: "PVLC", theatreName: "PVR: Lulu Kochi (Audi 4, 9-All New 3D Projection)", matchKeyword: "pvr-lulu-kochi-audi-4-9-all-new-3d-projection" },
   { theatreCode: "SNYK", theatreName: "Shenoys: Kochi", matchKeyword: "shenoys" },
   { theatreCode: "VMHE", theatreName: "Vanitha Cineplex: Edappally", matchKeyword: "vanitha cineplex" },
   { theatreCode: "CICS", theatreName: "Cinepolis: Centre Square", matchKeyword: "centre square" },
