@@ -376,7 +376,7 @@ export default function BMSNotifierDashboard() {
               Active Watchlist ({trackers.length})
             </h2>
             <span className="text-[11px] text-slate-500">
-              Worker polls every 2 mins • Tier 1 (City) + Tier 2 (Theatres)
+              Worker polls every 15 mins • Tier 1 (City) + Tier 2 (Theatres)
             </span>
           </div>
 

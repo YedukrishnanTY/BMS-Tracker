@@ -26,7 +26,7 @@ Designed with a sleek, non-blocky command-bar UI to track multiple upcoming movi
 | :--- | :--- | :--- | :--- |
 | **Dashboard & API** | Next.js (App Router), Tailwind CSS | Manage watchlist, parse BMS URLs, view alert logs | **Vercel** |
 | **Database** | MongoDB Atlas + Mongoose | Store movie trackers, theatre states, and notification logs | **MongoDB Atlas (`M0`)** |
-| **Scraper Worker** | Node.js, Playwright, `node-cron` | Poll BMS every 2 mins, detect openings, dispatch alerts | **Hugging Face Spaces (Docker)** |
+| **Scraper Worker** | Node.js, Playwright, `node-cron` | Poll BMS every 15 mins, detect openings, dispatch alerts | **Hugging Face Spaces (Docker)** |
 | **Notifications** | Telegram Bot API + Nodemailer | Deliver one-tap booking buttons to phone & inbox | Built-in |
 
 ---
