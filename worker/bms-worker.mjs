@@ -1,9 +1,13 @@
 import http from "http";
 import cron from "node-cron";
-import { chromium } from "playwright";
+import { chromium } from "playwright-extra";
+import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import { connectDB } from "../src/lib/mongodb.js";
 import Tracker from "../src/models/Tracker.js";
 import { triggerNotifications } from "../src/lib/notifier.js";
+
+// Enable full stealth evasion patches
+chromium.use(StealthPlugin());
 
 let isRunning = false;
 let lastRunTime = null;
@@ -41,7 +45,6 @@ async function checkTrackers() {
 
     console.log(`[${new Date().toLocaleTimeString()}] 🔍 Checking ${activeTrackers.length} tracker(s)...`);
 
-    // Stable flags that work on both Windows and Render Docker
     browser = await chromium.launch({
       headless: true,
       args: [
@@ -49,7 +52,6 @@ async function checkTrackers() {
         "--disable-setuid-sandbox",
         "--disable-dev-shm-usage",
         "--disable-blink-features=AutomationControlled",
-        "--disable-gpu",
       ],
     });
 
@@ -59,29 +61,25 @@ async function checkTrackers() {
       viewport: { width: 1366, height: 768 },
       locale: "en-IN",
       timezoneId: "Asia/Kolkata",
-      extraHTTPHeaders: {
-        "Accept-Language": "en-IN,en-GB;q=0.9,en-US;q=0.8,en;q=0.7",
-      },
     });
 
-    await context.addInitScript(() => {
-      Object.defineProperty(navigator, "webdriver", { get: () => undefined });
+    const page = await context.newPage();
+
+    // Warm up session on BMS home page to pass Cloudflare cookie check
+    await page.goto("https://in.bookmyshow.com/explore/home/kochi", {
+      waitUntil: "domcontentloaded",
+      timeout: 30000,
     });
+    await page.waitForTimeout(3000);
 
     for (const tracker of activeTrackers) {
-      const page = await context.newPage();
-
-      // Block heavy assets to keep RAM under ~180MB on Render Free Tier
-      await page.route("**/*.{png,jpg,jpeg,gif,webp,svg,woff,woff2,ttf,css}", (route) =>
-        route.abort()
-      );
-
       const targetUrl = buildBmsUrl(tracker);
       console.log(`➡️ [${tracker.movieTitle.trim()}] Navigating to: ${targetUrl}`);
 
       try {
         await page.goto(targetUrl, { waitUntil: "domcontentloaded", timeout: 30000 });
-        await page.waitForTimeout(3000);
+        // Wait 5s to allow any Cloudflare JS challenge to auto-resolve
+        await page.waitForTimeout(5000);
 
         const finalUrl = page.url();
         const pageTitle = await page.title();
@@ -91,7 +89,7 @@ async function checkTrackers() {
           pageTitle.toLowerCase().includes("just a moment") ||
           pageTitle.toLowerCase().includes("attention required")
         ) {
-          console.warn(`⚠️ [${tracker.movieTitle.trim()}] Blocked by Cloudflare Challenge.`);
+          console.warn(`⚠️ [${tracker.movieTitle.trim()}] Still blocked by Cloudflare Datacenter IP filter.`);
           continue;
         }
 
@@ -150,7 +148,6 @@ async function checkTrackers() {
           `🎭 [${tracker.movieTitle.trim()}] Active venue blocks with showtimes found: ${scrapedVenues.length}`
         );
 
-        // TIER 1: City-level opening alert
         if (scrapedVenues.length > 0 && !tracker.cityBookingOpen) {
           console.log(`🟢 [CITY OPEN] Sending notification for ${tracker.movieTitle.trim()} in ${tracker.citySlug}!`);
           tracker.cityBookingOpen = true;
@@ -168,7 +165,6 @@ async function checkTrackers() {
           });
         }
 
-        // TIER 2: Specific Theatre opening alerts
         for (const targetTheatre of tracker.targetTheatres) {
           if (targetTheatre.isNotified) continue;
 
@@ -222,12 +218,10 @@ async function checkTrackers() {
         await tracker.save();
       } catch (err) {
         console.error(`❌ Error checking ${tracker.movieTitle.trim()}:`, err.message);
-      } finally {
-        if (!page.isClosed()) {
-          await page.close();
-        }
       }
     }
+
+    await page.close();
     console.log(`[${new Date().toLocaleTimeString()}] ✅ Scan cycle finished.`);
   } catch (err) {
     console.error("❌ Worker cycle error:", err.message);
