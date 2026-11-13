@@ -1,10 +1,10 @@
+# 🛰️ Bothan Spy (`bms-pulse`) — Two-Tier BookMyShow Ticket Notifier
 
-
-# 🎬 BookMyShow Ticket Notifier
+> *"Many Bothans died to bring us this showtime information."*
 
 A self-hosted, real-time BookMyShow ticket availability radar built with **Next.js (App Router)**, **MongoDB**, **Tailwind CSS**, and **Playwright**. 
 
-Designed with a sleek, non-blocky command-bar UI to track multiple upcoming movies across multiple theatres simultaneously and fire instant **Telegram** and **Email** alerts the moment bookings go live.
+Designed with a sleek, non-blocky command-bar UI to track multiple upcoming movies across multiple theatres simultaneously and fire instant **Telegram** and **Email** transmissions the moment bookings go live.
 
 ---
 
@@ -15,18 +15,19 @@ Designed with a sleek, non-blocky command-bar UI to track multiple upcoming movi
   * **Tier 2 (Specific Theatre Alert):** Continues polling and sends separate notifications with showtimes and direct booking links as each of your selected theatres (e.g., *PVR: Lulu*, *Shenoys*, *Vanitha Cineplex*) opens up.
 * **Smart URL Command Bar:** Paste any BookMyShow movie URL and automatically extract the Movie Title, Slug, and `ET` Event Code.
 * **Silent Date-Redirect Protection:** Guards against BookMyShow's default behavior of silently redirecting un-opened future dates back to today's date, preventing false-positive alerts.
-* **Stealth Playwright Worker:** Blocks heavy image/font/CSS assets for 3x faster checks and masks headless browser fingerprints to avoid Cloudflare blocks.
+* **Low-Memory Stealth Playwright Worker:** Uses low-memory Chromium flags (`--single-process`, `--no-zygote`), blocks heavy image/font/CSS assets for 3x faster checks, and masks headless browser fingerprints to fit comfortably inside Render's 512 MB free tier.
 * **Modern Swimlane UI:** Built with a dark slate/violet atmospheric canvas, horizontal tracker strips, inline status pills, and a slide-over alert history drawer.
 
 ---
 
-## 🏗️ System Architecture
+## 🏗️ System Architecture (100% Free Stack)
 
 | Layer | Technology | Role | Free Hosting |
 | :--- | :--- | :--- | :--- |
-| **Dashboard & API** | Next.js (App Router), Tailwind CSS | Manage watchlist, parse BMS URLs, view alert logs | **Vercel** |
+| **Dashboard & API** | Next.js (App Router), Tailwind CSS | Manage watchlist, parse BMS URLs, view alert logs | **Vercel (Hobby)** |
 | **Database** | MongoDB Atlas + Mongoose | Store movie trackers, theatre states, and notification logs | **MongoDB Atlas (`M0`)** |
-| **Scraper Worker** | Node.js, Playwright, `node-cron` | Poll BMS every 15 mins, detect openings, dispatch alerts | **Hugging Face Spaces (Docker)** |
+| **Scraper Worker** | Node.js, Playwright, `node-cron` | Poll BMS every 2 mins, detect openings, dispatch alerts | **Render (Free Docker Web Service)** |
+| **Keep-Alive Pinger** | HTTP Health Check (`/` & `/check`) | Ping Render every 14 mins so the container never sleeps | **cron-job.org** |
 | **Notifications** | Telegram Bot API + Nodemailer | Deliver one-tap booking buttons to phone & inbox | Built-in |
 
 ---
@@ -34,7 +35,7 @@ Designed with a sleek, non-blocky command-bar UI to track multiple upcoming movi
 ## 📂 Project Structure
 
 ```text
-bms-pulse/
+bothan-spy/
 ├── src/
 │   ├── app/
 │   │   ├── api/
@@ -48,8 +49,8 @@ bms-pulse/
 │   └── models/
 │       └── Tracker.js                # Two-tier state & log Mongoose schema
 ├── worker/
-│   └── bms-worker.mjs                # Playwright scraper + Port 7860 health server
-├── Dockerfile                        # Container config for Hugging Face Spaces
+│   └── bms-worker.mjs                # Playwright scraper + HTTP health server
+├── Dockerfile                        # Container config for Render Free Tier
 └── package.json
 ```
 
@@ -74,7 +75,7 @@ NOTIFY_RECEIVER_EMAIL=your-email@gmail.com
 ```
 
 ### How to Get Telegram Credentials (1 Minute)
-1. Open Telegram and message **[@BotFather](https://t.me/BotFather)** -> send `/newbot` -> copy the **HTTP API Token** (`TELEGRAM_BOT_TOKEN`).
+1. Open Telegram and message **[@BotFather](https://t.me/BotFather)** → send `/newbot` → copy the **HTTP API Token** (`TELEGRAM_BOT_TOKEN`).
 2. Open a chat with your newly created bot and send `Hello`.
 3. Open `https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getUpdates` in your browser and copy the `"id"` field inside `"chat"` (`TELEGRAM_CHAT_ID`).
 
@@ -100,8 +101,6 @@ NOTIFY_RECEIVER_EMAIL=your-email@gmail.com
    ```
 
 
-
----
 
 ## 📜 License
 
