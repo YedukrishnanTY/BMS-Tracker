@@ -9,7 +9,15 @@ let isRunning = false;
 let lastRunTime = null;
 
 function buildBmsUrl(tracker) {
-  return `https://in.bookmyshow.com/buytickets/${tracker.movieSlug}-${tracker.citySlug}/movie-${tracker.cityCode.toLowerCase()}-${tracker.movieCode}-MT/${tracker.targetDate}`;
+  const cleanSlug = (tracker.movieSlug || "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  const cleanCity = (tracker.citySlug || "kochi").toLowerCase().trim();
+  const cleanCode = (tracker.movieCode || "").toUpperCase().trim();
+
+  return `https://in.bookmyshow.com/movies/${cleanCity}/${cleanSlug}/buytickets/${cleanCode}/${tracker.targetDate}`;
 }
 
 async function checkTrackers() {
@@ -27,13 +35,13 @@ async function checkTrackers() {
     lastRunTime = new Date().toISOString();
 
     if (activeTrackers.length === 0) {
-      console.log(`[${new Date().toLocaleTimeString()}] No active trackers.`);
+      console.log(`[${new Date().toLocaleTimeString()}] No active trackers in DB.`);
       return;
     }
 
-    console.log(`[${new Date().toLocaleTimeString()}] Checking ${activeTrackers.length} tracker(s)...`);
+    console.log(`[${new Date().toLocaleTimeString()}] 🔍 Checking ${activeTrackers.length} tracker(s)...`);
 
-    // Launch Chromium with Stealth & Container-Safe Flags
+    // Stable flags that work on both Windows and Render Docker
     browser = await chromium.launch({
       headless: true,
       args: [
@@ -42,9 +50,6 @@ async function checkTrackers() {
         "--disable-dev-shm-usage",
         "--disable-blink-features=AutomationControlled",
         "--disable-gpu",
-        "--no-zygote",
-        "--single-process",
-        "--js-flags=--max-old-space-size=256",
       ],
     });
 
@@ -59,7 +64,6 @@ async function checkTrackers() {
       },
     });
 
-    // Mask headless automation fingerprint from Cloudflare
     await context.addInitScript(() => {
       Object.defineProperty(navigator, "webdriver", { get: () => undefined });
     });
@@ -67,77 +71,93 @@ async function checkTrackers() {
     for (const tracker of activeTrackers) {
       const page = await context.newPage();
 
-      // Block heavy media/fonts to cut load time & bandwidth by 70%
+      // Block heavy assets to keep RAM under ~180MB on Render Free Tier
       await page.route("**/*.{png,jpg,jpeg,gif,webp,svg,woff,woff2,ttf,css}", (route) =>
         route.abort()
       );
 
       const targetUrl = buildBmsUrl(tracker);
+      console.log(`➡️ [${tracker.movieTitle.trim()}] Navigating to: ${targetUrl}`);
 
       try {
         await page.goto(targetUrl, { waitUntil: "domcontentloaded", timeout: 30000 });
-        await page.waitForTimeout(2500);
+        await page.waitForTimeout(3000);
 
         const finalUrl = page.url();
+        const pageTitle = await page.title();
+        console.log(`📄 [${tracker.movieTitle.trim()}] Loaded Title: "${pageTitle}" | Final URL: ${finalUrl}`);
 
-        // Guard against silent redirects when date is not yet open
+        if (
+          pageTitle.toLowerCase().includes("just a moment") ||
+          pageTitle.toLowerCase().includes("attention required")
+        ) {
+          console.warn(`⚠️ [${tracker.movieTitle.trim()}] Blocked by Cloudflare Challenge.`);
+          continue;
+        }
+
         const isBuyTicketsPage = finalUrl.includes("/buytickets/");
-        const isExactDateLoaded = finalUrl.endsWith(`/${tracker.targetDate}`);
+        const isExactDateLoaded = finalUrl.includes(`/${tracker.targetDate}`);
 
         if (!isBuyTicketsPage || !isExactDateLoaded) {
+          console.log(
+            `⏸️ [${tracker.movieTitle.trim()}] Date ${tracker.targetDate} not open yet (redirected to ${finalUrl}).`
+          );
           tracker.lastCheckedAt = new Date();
           await tracker.save();
-          await page.close();
           continue;
         }
 
         const scrapedVenues = await page.evaluate(() => {
           const venues = [];
-          const venueElements = document.querySelectorAll(
-            "ul#venuelist > li, [data-id='venue-item'], .ReactVirtualized__Grid__innerScrollContainer > div"
+          const timeRegex = /\b(0?[1-9]|1[0-2]):[0-5][0-9]\s?(AM|PM)\b/gi;
+
+          const candidates = document.querySelectorAll(
+            "ul#venuelist > li, [data-id='venue-item'], .ReactVirtualized__Grid__innerScrollContainer > div, a[href*='/cinemas/']"
           );
 
-          venueElements.forEach((el) => {
-            const textContent = el.innerText || "";
-            const codeAttr = el.getAttribute("data-id") || "";
-            const timeMatches =
-              textContent.match(/\b(0?[1-9]|1[0-2]):[0-5][0-9]\s?(AM|PM)\b/gi) || [];
+          candidates.forEach((el) => {
+            const container = el.tagName === "A" ? el.closest("li, div") || el : el;
+            const rawText = (container.innerText || "").toLowerCase();
+            const showtimes = rawText.match(timeRegex) || [];
 
-            if (textContent.trim().length > 0) {
+            if (showtimes.length > 0) {
+              const codeAttr =
+                container.getAttribute("data-id") || el.getAttribute("href") || "";
               venues.push({
-                rawText: textContent.toLowerCase(),
+                rawText,
                 code: codeAttr.toUpperCase(),
-                showtimes: [...new Set(timeMatches)],
+                showtimes: [...new Set(showtimes.map((s) => s.toUpperCase()))],
               });
             }
           });
 
           if (venues.length === 0) {
-            document.querySelectorAll("a[href*='/cinemas/']").forEach((a) => {
-              const container = a.closest("li, div") || a;
-              const rawText = (container.innerText || a.innerText || "").toLowerCase();
-              const href = a.getAttribute("href") || "";
-              const timeMatches =
-                rawText.match(/\b(0?[1-9]|1[0-2]):[0-5][0-9]\s?(AM|PM)\b/gi) || [];
+            const bodyText = document.body.innerText || "";
+            const allTimes = bodyText.match(timeRegex) || [];
+            if (allTimes.length > 0) {
               venues.push({
-                rawText,
-                code: href.toUpperCase(),
-                showtimes: [...new Set(timeMatches)],
+                rawText: bodyText.toLowerCase(),
+                code: "BODY_SCAN",
+                showtimes: [...new Set(allTimes.map((s) => s.toUpperCase()))],
               });
-            });
+            }
           }
 
           return venues;
         });
 
+        console.log(
+          `🎭 [${tracker.movieTitle.trim()}] Active venue blocks with showtimes found: ${scrapedVenues.length}`
+        );
+
         // TIER 1: City-level opening alert
         if (scrapedVenues.length > 0 && !tracker.cityBookingOpen) {
-          console.log(`🟢 [CITY OPEN] ${tracker.movieTitle} in ${tracker.citySlug}`);
+          console.log(`🟢 [CITY OPEN] Sending notification for ${tracker.movieTitle.trim()} in ${tracker.citySlug}!`);
           tracker.cityBookingOpen = true;
           tracker.cityNotifiedAt = new Date();
           tracker.logs.unshift({
             type: "CITY_OPEN",
-            message: `Bookings opened in ${tracker.citySlug.toUpperCase()} (${scrapedVenues.length} venues live)`,
+            message: `Bookings opened in ${tracker.citySlug.toUpperCase()}`,
             bookingUrl: targetUrl,
           });
 
@@ -160,7 +180,9 @@ async function checkTrackers() {
           );
 
           if (matchedVenue) {
-            console.log(`🎟️ [THEATRE OPEN] ${tracker.movieTitle} @ ${targetTheatre.theatreName}`);
+            console.log(
+              `🎟️ [THEATRE OPEN] Sending notification for ${tracker.movieTitle.trim()} @ ${targetTheatre.theatreName}!`
+            );
             targetTheatre.isNotified = true;
             targetTheatre.notifiedAt = new Date();
             targetTheatre.showtimes = matchedVenue.showtimes;
@@ -178,6 +200,10 @@ async function checkTrackers() {
               showtimes: matchedVenue.showtimes,
               bookingUrl: targetUrl,
             });
+          } else {
+            console.log(
+              `⏳ [${tracker.movieTitle.trim()}] Watched theatre "${targetTheatre.theatreName}" not found on page yet.`
+            );
           }
         }
 
@@ -186,27 +212,32 @@ async function checkTrackers() {
           tracker.targetTheatres.every((t) => t.isNotified);
 
         if (tracker.cityBookingOpen && allTheatresNotified) {
+          console.log(
+            `🏁 [${tracker.movieTitle.trim()}] All watched theatres notified! Marking tracker completed.`
+          );
           tracker.status = "completed";
         }
 
         tracker.lastCheckedAt = new Date();
         await tracker.save();
       } catch (err) {
-        console.error(`Error checking ${tracker.movieTitle}:`, err.message);
+        console.error(`❌ Error checking ${tracker.movieTitle.trim()}:`, err.message);
       } finally {
-        await page.close();
+        if (!page.isClosed()) {
+          await page.close();
+        }
       }
     }
+    console.log(`[${new Date().toLocaleTimeString()}] ✅ Scan cycle finished.`);
   } catch (err) {
-    console.error("Worker cycle error:", err.message);
+    console.error("❌ Worker cycle error:", err.message);
   } finally {
     if (browser) await browser.close();
     isRunning = false;
   }
 }
 
-// 1. Start HTTP Health-Check Server on Port 7860 (Required by Hugging Face Spaces)
-const PORT = process.env.PORT || 7860;
+const PORT = process.env.PORT || 10000;
 http
   .createServer((req, res) => {
     if (req.url === "/check") {
@@ -228,9 +259,8 @@ http
     console.log(`🌐 Health server listening on port ${PORT}`);
   });
 
-// 2. Run immediately and schedule every 2 minutes with slight random jitter
 checkTrackers();
 cron.schedule("*/2 * * * *", () => {
-  const jitterMs = Math.floor(Math.random() * 8000);
+  const jitterMs = Math.floor(Math.random() * 5000);
   setTimeout(checkTrackers, jitterMs);
 });
