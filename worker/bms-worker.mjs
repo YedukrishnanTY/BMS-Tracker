@@ -41,6 +41,10 @@ async function checkTrackers() {
         "--disable-setuid-sandbox",
         "--disable-dev-shm-usage",
         "--disable-blink-features=AutomationControlled",
+        "--disable-gpu",
+        "--no-zygote",
+        "--single-process",
+        "--js-flags=--max-old-space-size=256",
       ],
     });
 
