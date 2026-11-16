@@ -1,4 +1,4 @@
-# 🛰️ Bothan Spy (`bms-pulse`) — Two-Tier BookMyShow Ticket Notifier
+# 🛰️ Bothan Spy (`bms-Tracker`) — Two-Tier BookMyShow Ticket Notifier
 
 > *"Many Bothans died to bring us this showtime information."*
 
@@ -11,8 +11,9 @@ Designed with a sleek, non-blocky command-bar UI to track multiple upcoming movi
 ## ✨ Core Features
 
 * **Two-Tier Notification Engine:**
-  * **Tier 1 (City-Wide Alert):** Fires a notification the moment *any* venue in your target city (e.g., Kochi) opens bookings for your target date.
-  * **Tier 2 (Specific Theatre Alert):** Continues polling and sends separate notifications with showtimes and direct booking links as each of your selected theatres (e.g., *PVR: Lulu*, *Shenoys*, *Vanitha Cineplex*) opens up.
+  * **
+(City-Wide Alert):** Fires a notification the moment *any* venue in your target city (e.g., Kochi) opens bookings for your target date.
+  * **(Specific Theatre Alert):** Continues polling and sends separate notifications with showtimes and direct booking links as each of your selected theatres (e.g., *PVR: Lulu*) opens up.
 * **Smart URL Command Bar:** Paste any BookMyShow movie URL and automatically extract the Movie Title, Slug, and `ET` Event Code.
 * **Silent Date-Redirect Protection:** Guards against BookMyShow's default behavior of silently redirecting un-opened future dates back to today's date, preventing false-positive alerts.
 * **Low-Memory Stealth Playwright Worker:** Uses low-memory Chromium flags (`--single-process`, `--no-zygote`), blocks heavy image/font/CSS assets for 3x faster checks, and masks headless browser fingerprints to fit comfortably inside Render's 512 MB free tier.
@@ -58,7 +59,7 @@ bothan-spy/
 
 ## ⚙️ Environment Variables
 
-Create a `.env.local` file in the root directory:
+Create a `.env` file in the root directory:
 
 ```env
 # 1. MongoDB Atlas Connection String
