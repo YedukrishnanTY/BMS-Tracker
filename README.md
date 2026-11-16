@@ -1,4 +1,4 @@
-# 🛰️ Bothan Spy (`bms-Tracker`) — Two-Tier BookMyShow Ticket Notifier
+# 🛰️ Bothan Spy (`BMS-Tracker`) — Two-Tier BookMyShow Ticket Notifier
 
 > *"Many Bothans died to bring us this showtime information."*
 
