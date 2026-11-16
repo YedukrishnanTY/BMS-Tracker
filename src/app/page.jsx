@@ -309,7 +309,7 @@ export default function BMSNotifierDashboard() {
                           : "bg-zinc-900/80 text-slate-400 border border-white/[0.05]"
                       }`}
                     >
-                      Kochi theatre presets
+                      Kochi Theatres
                     </button>
                     <button
                       type="button"
@@ -321,7 +321,7 @@ export default function BMSNotifierDashboard() {
                           : "bg-zinc-900/80 text-slate-400 border border-white/[0.05]"
                       }`}
                     >
-                      Custom city and theatre
+                      Custom
                     </button>
                   </div>
                 </div>
