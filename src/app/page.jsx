@@ -29,6 +29,7 @@ const KOCHI_THEATRE_PRESETS = [
   { theatreCode: "PANC", theatreName: "PAN Cinemas: Nucleus Mall", matchKeyword: "pan cinemas" },
   { theatreCode: "KAVI", theatreName: "Kavitha Theatre: Ernakulam", matchKeyword: "kavitha" },
   { theatreCode: "PMNK", theatreName: "PVR: Mymoon, Kochi", matchKeyword: "Mymoon" },
+  { theatreCode: "PMCE", theatreName: "Padma Cinema: Kochi", matchKeyword: "Padma" },
 ];
 
 export default function BMSNotifierDashboard() {
