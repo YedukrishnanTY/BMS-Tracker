@@ -229,7 +229,7 @@ export default function BMSNotifierDashboard() {
 
         <section className="intro">
           <h1>Your movie watchlist</h1>
-          <p>We&apos;ll let you know when tickets are available.</p>
+          <p>You&apos;ll be notified when the movie becomes available.</p>
         </section>
 
         <section className="add-section" aria-labelledby="add-heading">
