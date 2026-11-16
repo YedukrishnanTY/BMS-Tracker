@@ -1,23 +1,22 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
+import { Toaster, toast } from "sonner";
 import {
-  Sparkles,
   Bell,
-  Send,
-  Mail,
-  Trash2,
-  ExternalLink,
+  Calendar,
   CheckCircle2,
   Clock,
-  Activity,
+  ExternalLink,
+  Mail,
   MapPin,
-  Calendar,
   Pause,
   Play,
+  Send,
+  Trash2,
   X,
 } from "lucide-react";
-import Image from "next/image";
 
 // Real BookMyShow Kochi Venue Presets
 const KOCHI_THEATRE_PRESETS = [
@@ -49,7 +48,6 @@ export default function BMSNotifierDashboard() {
     KOCHI_THEATRE_PRESETS[0], // Default PVR Lulu selected
   ]);
   const [customCitySlug, setCustomCitySlug] = useState("");
-  const [customCityCode, setCustomCityCode] = useState("");
   const [customTheatreCode, setCustomTheatreCode] = useState("");
   const [customTheatreName, setCustomTheatreName] = useState("");
   const [customMatchKeyword, setCustomMatchKeyword] = useState("");
@@ -79,8 +77,6 @@ export default function BMSNotifierDashboard() {
     setBmsInput(val);
     setComposerExpanded(true);
 
-    // Matches URLs like: https://in.bookmyshow.com/kochi/movies/pushpa-2-the-rule/ET00356724
-    // or /buytickets/pushpa-2-the-rule-kochi/movie-koch-ET00356724-MT/20261205
     const codeMatch = val.match(/(ET\d{8})/i);
     const moviesSlugMatch = val.match(/\/movies\/([^\/]+)\/ET\d+/i);
     const buyTicketsSlugMatch = val.match(/\/buytickets\/([^\/]+)-[a-z]+\/movie-/i);
@@ -113,18 +109,50 @@ export default function BMSNotifierDashboard() {
 
   async function handleCreateTracker(e) {
     e.preventDefault();
-    if (!movieTitle || !movieCode || !targetDate) return;
+    if (!movieTitle.trim()) {
+      toast.error("Enter a movie title.");
+      return;
+    }
+    if (!movieCode.trim()) {
+      toast.error("Enter the BookMyShow event code.");
+      return;
+    }
+    if (!targetDate) {
+      toast.error("Choose a show date.");
+      return;
+    }
+    if (theatreMode === "custom") {
+      if (!customCitySlug.trim()) {
+        toast.error("Enter a city.");
+        return;
+      }
+      if (!customTheatreCode.trim()) {
+        toast.error("Enter the theatre code.");
+        return;
+      }
+      if (!customTheatreName.trim()) {
+        toast.error("Enter the theatre name.");
+        return;
+      }
+      if (!customMatchKeyword.trim()) {
+        toast.error("Enter a listing match keyword.");
+        return;
+      }
+    } else if (selectedTheatres.length === 0) {
+      toast.error("Select at least one theatre before saving.");
+      return;
+    }
 
     const formattedDate = targetDate.replaceAll("-", ""); // YYYY-MM-DD -> YYYYMMDD
     const targetTheatres =
       theatreMode === "custom"
         ? [
-            {
-              theatreCode: customTheatreCode.trim().toUpperCase(),
-              theatreName: customTheatreName.trim(),
-              matchKeyword: customMatchKeyword.trim(),
-            },
-          ]
+          {
+            theatreCode: customTheatreCode.trim().toUpperCase(),
+            theatreName: customTheatreName.trim(),
+            matchKeyword: customMatchKeyword.trim(),
+          },
+        ]
         : selectedTheatres;
 
     const res = await fetch("/api/trackers", {
@@ -151,7 +179,6 @@ export default function BMSNotifierDashboard() {
       setTargetDate("");
       setTheatreMode("presets");
       setCustomCitySlug("");
-      setCustomCityCode("");
       setCustomTheatreCode("");
       setCustomTheatreName("");
       setCustomMatchKeyword("");
@@ -186,434 +213,157 @@ export default function BMSNotifierDashboard() {
     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
   return (
-    <div className="min-h-screen bg-[#0f172a] text-slate-100 selection:bg-violet-500/30 selection:text-violet-200 relative overflow-x-hidden">
-      {/* Subtle Top Radial Atmosphere */}
-      <div className="pointer-events-none fixed inset-x-0 top-0 h-96 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(167,139,250,0.14),transparent)]" />
-
-      <div className="max-w-5xl mx-auto px-6 py-10 relative z-10">
-        {/* Top Minimal Header */}
-        <header className="flex items-center justify-between pb-8 border-b border-white/[0.06]">
-          <div className="flex items-center gap-3">
-            {/* <div className="h-9 w-9 rounded-xl bg-violet-500/10 border border-violet-400/20 flex items-center justify-center text-violet-400"> */}
-              <Image src={'/logo.png'} alt="logo" width={150} height={20} />
-            {/* </div> */}
-            <div>
-              <h1 className="text-lg font-semibold tracking-tight text-white flex items-center gap-2">
-                BMS Tracker
-                <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-zinc-800/90 text-violet-300 border border-violet-500/20">
-                  Multi-city
-                </span>
-              </h1>
-              <p className="text-xs text-slate-400">
-                city & theatre showtime radar
-              </p>
-            </div>
+    <main className="app-shell">
+      <div className="app-container">
+        <header className="topbar">
+          <div className="brand">
+            <Image src="/logo.png" alt="BMS Spy logo" width={612} height={408} className="brand-logo" priority />
+            <span>BMS Tracker</span>
           </div>
-
-          <button
-            onClick={() => setDrawerOpen(true)}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-full bg-zinc-900/70 hover:bg-zinc-800/80 border border-white/[0.07] text-xs text-slate-300 transition"
-          >
-            <Activity className="w-3.5 h-3.5 text-violet-400" />
-            <span>Alert Stream</span>
-            {allLogs.length > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full bg-violet-500/20 text-violet-300 text-[10px]">
-                {allLogs.length}
-              </span>
-            )}
+          <button className="alerts-button" onClick={() => setDrawerOpen(true)}>
+            <Bell size={16} />
+            <span>Alerts</span>
+            <span className="alert-count">{allLogs.length}</span>
           </button>
         </header>
 
-        {/* Floating Spotlight Command Bar */}
-        <section className="my-8">
-          <div className="rounded-2xl bg-zinc-900/60 backdrop-blur-xl border border-white/[0.08] shadow-2xl shadow-black/40 transition-all overflow-hidden">
-            <div className="flex items-center px-4 py-3.5 gap-3">
-              <Bell className="w-4 h-4 text-violet-400 shrink-0" />
+        <section className="intro">
+          <h1>Your movie watchlist</h1>
+          <p>We&apos;ll let you know when tickets are available.</p>
+        </section>
+
+        <section className="add-section" aria-labelledby="add-heading">
+          <h2 id="add-heading">Add a movie</h2>
+          <div className={`composer ${composerExpanded ? "composer-open" : ""}`}>
+            <div className="composer-bar">
               <input
                 type="text"
                 value={bmsInput}
                 onFocus={() => setComposerExpanded(true)}
                 onChange={(e) => handleUrlPasteOrChange(e.target.value)}
-                placeholder="Paste BookMyShow movie URL (e.g. https://in.bookmyshow.com/kochi/movies/empuraan/ET00384234)..."
-                className="w-full bg-transparent text-sm text-white placeholder-slate-500 focus:outline-none"
+                aria-label="BookMyShow movie URL or movie title"
+                placeholder="Paste a BookMyShow link or type a movie title..."
               />
-              {composerExpanded && (
-                <button
-                  onClick={() => setComposerExpanded(false)}
-                  className="text-slate-500 hover:text-slate-300 p-1"
-                >
-                  <X className="w-4 h-4" />
+              {composerExpanded ? (
+                <button className="icon-button" aria-label="Close movie details" onClick={() => setComposerExpanded(false)}>
+                  <X size={17} />
                 </button>
+              ) : (
+                <button className="add-button" onClick={() => setComposerExpanded(true)}>Add</button>
               )}
             </div>
 
-            {/* Expandable Configuration Drawer inside Command Bar */}
             {composerExpanded && (
-              <form
-                onSubmit={handleCreateTracker}
-                className="px-5 pb-5 pt-3 border-t border-white/[0.05] space-y-5 bg-zinc-950/40"
-              >
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-[11px] uppercase tracking-wider text-slate-400 mb-1.5">
-                      Movie Title
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={movieTitle}
-                      onChange={(e) => setMovieTitle(e.target.value)}
-                      placeholder="e.g. L2: Empuraan"
-                      className="w-full px-3 py-2 rounded-lg bg-zinc-900/90 border border-white/[0.07] text-sm text-white focus:border-violet-400 focus:outline-none"
-                    />
+              <form onSubmit={handleCreateTracker} className="composer-form" noValidate>
+                <div className="form-grid">
+                  <div className="field">
+                    <label htmlFor="movie-title">Movie title</label>
+                    <input id="movie-title" type="text" required value={movieTitle} onChange={(e) => setMovieTitle(e.target.value)} placeholder="e.g. L2: Empuraan" />
                   </div>
-                  <div>
-                    <label className="block text-[11px] uppercase tracking-wider text-slate-400 mb-1.5">
-                      BMS Event Code
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={movieCode}
-                      onChange={(e) => setMovieCode(e.target.value.toUpperCase())}
-                      placeholder="e.g. ET00384234"
-                      className="w-full px-3 py-2 rounded-lg bg-zinc-900/90 border border-white/[0.07] text-sm font-mono text-violet-300 focus:border-violet-400 focus:outline-none"
-                    />
+                  <div className="field">
+                    <label htmlFor="movie-code">BMS event code</label>
+                    <input id="movie-code" type="text" required value={movieCode} onChange={(e) => setMovieCode(e.target.value.toUpperCase())} placeholder="ET00384234" />
                   </div>
-                  <div>
-                    <label className="block text-[11px] uppercase tracking-wider text-slate-400 mb-1.5">
-                      Target Date
-                    </label>
-                    <input
-                      type="date"
-                      required
-                      value={targetDate}
-                      onChange={(e) => setTargetDate(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg bg-zinc-900/90 border border-white/[0.07] text-sm text-white focus:border-violet-400 focus:outline-none"
-                    />
+                  <div className="field">
+                    <label htmlFor="target-date">Show date</label>
+                    <input id="target-date" type="date" required value={targetDate} onChange={(e) => setTargetDate(e.target.value)} />
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-[11px] uppercase tracking-wider text-slate-400 mb-2">
-                    Theatre setup
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setTheatreMode("presets")}
-                      aria-pressed={theatreMode === "presets"}
-                      className={`px-3 py-1.5 rounded-lg text-xs transition ${
-                        theatreMode === "presets"
-                          ? "bg-violet-500/20 text-violet-200 border border-violet-400/40"
-                          : "bg-zinc-900/80 text-slate-400 border border-white/[0.05]"
-                      }`}
-                    >
-                      Kochi Theatres
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setTheatreMode("custom")}
-                      aria-pressed={theatreMode === "custom"}
-                      className={`px-3 py-1.5 rounded-lg text-xs transition ${
-                        theatreMode === "custom"
-                          ? "bg-violet-500/20 text-violet-200 border border-violet-400/40"
-                          : "bg-zinc-900/80 text-slate-400 border border-white/[0.05]"
-                      }`}
-                    >
-                      Custom
-                    </button>
+                <div className="form-block">
+                  <span className="form-label">Theatres</span>
+                  <div className="mode-tabs">
+                    <button type="button" onClick={() => setTheatreMode("presets")} aria-pressed={theatreMode === "presets"} className={theatreMode === "presets" ? "mode-tab active" : "mode-tab"}>Kochi</button>
+                    <button type="button" onClick={() => setTheatreMode("custom")} aria-pressed={theatreMode === "custom"} className={theatreMode === "custom" ? "mode-tab active" : "mode-tab"}>Another city</button>
                   </div>
                 </div>
 
-                {/* Kochi Theatre Presets */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className={`text-[11px] uppercase tracking-wider ${theatreMode === "custom" ? "text-slate-600" : "text-slate-400"}`}>
-                       Watch Specific Kochi Theatres
-                    </label>
-                    {theatreMode === "presets" && (
-                      <span className="text-[11px] text-violet-400">
-                        {selectedTheatres.length} selected
-                      </span>
-                    )}
-                  </div>
-                  <fieldset disabled={theatreMode === "custom"} className={theatreMode === "custom" ? "opacity-40" : ""}>
-                    <div className="flex flex-wrap gap-2">
-                      {KOCHI_THEATRE_PRESETS.map((preset) => {
-                        const active = selectedTheatres.some(
-                          (t) => t.theatreCode === preset.theatreCode
-                        );
-                        return (
-                          <button
-                            type="button"
-                            key={preset.theatreCode}
-                            onClick={() => togglePresetTheatre(preset)}
-                            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1.5 ${active
-                              ? "bg-violet-500/20 text-violet-200 border border-violet-400/40 shadow-sm shadow-violet-500/10"
-                              : "bg-zinc-900/80 text-slate-400 border border-white/[0.05] hover:border-white/15"
-                              }`}
-                          >
-                            <span>{preset.theatreName}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
+                {theatreMode === "presets" ? (
+                  <fieldset className="theatre-options">
+                    <legend>Choose the theatres to watch</legend>
+                    {KOCHI_THEATRE_PRESETS.map((preset) => {
+                      const active = selectedTheatres.some((t) => t.theatreCode === preset.theatreCode);
+                      return (
+                        <button type="button" key={preset.theatreCode} title={preset.theatreName} onClick={() => togglePresetTheatre(preset)} className={active ? "theatre-chip selected" : "theatre-chip"} aria-pressed={active}>
+                          {active && <CheckCircle2 size={14} />}
+                          <span>{preset.theatreName}</span>
+                        </button>
+                      );
+                    })}
                   </fieldset>
-                </div>
-
-                {theatreMode === "custom" && (
-                  <div className="space-y-4 rounded-xl border border-white/[0.06] bg-zinc-900/40 p-4">
-                    <p className="text-xs text-slate-400">
-                      Preset theatres are disabled for custom cities. Enter the BMS city details and one theatre to monitor.
-                    </p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-[11px] uppercase tracking-wider text-slate-400 mb-1.5">
-                          City
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={customCitySlug}
-                          onChange={(e) => setCustomCitySlug(e.target.value)}
-                          placeholder="e.g. Bangalore, Kochi, Mumbai"
-                          className="w-full px-3 py-2 rounded-lg bg-zinc-900/90 border border-white/[0.07] text-sm text-white focus:border-violet-400 focus:outline-none"
-                        />
-                      </div>
-                      {/* <div>
-                        <label className="block text-[11px] uppercase tracking-wider text-slate-400 mb-1.5">
-                          City Code
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={customCityCode}
-                          onChange={(e) => setCustomCityCode(e.target.value)}
-                          placeholder="e.g. TRVM"
-                          className="w-full px-3 py-2 rounded-lg bg-zinc-900/90 border border-white/[0.07] text-sm font-mono text-white focus:border-violet-400 focus:outline-none"
-                        />
-                      </div> */}
-                      <div>
-                        <label className="block text-[11px] uppercase tracking-wider text-slate-400 mb-1.5">
-                          Theatre Code
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={customTheatreCode}
-                          onChange={(e) => setCustomTheatreCode(e.target.value)}
-                          placeholder="e.g. PVRM"
-                          className="w-full px-3 py-2 rounded-lg bg-zinc-900/90 border border-white/[0.07] text-sm font-mono text-white focus:border-violet-400 focus:outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] uppercase tracking-wider text-slate-400 mb-1.5">
-                          Theatre Name
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={customTheatreName}
-                          onChange={(e) => setCustomTheatreName(e.target.value)}
-                          placeholder="e.g. PVR: Lulu Mall"
-                          className="w-full px-3 py-2 rounded-lg bg-zinc-900/90 border border-white/[0.07] text-sm text-white focus:border-violet-400 focus:outline-none"
-                        />
-                      </div>
-                      <div className="md:col-span-2">
-                        <label className="block text-[11px] uppercase tracking-wider text-slate-400 mb-1.5">
-                          Match Keyword
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={customMatchKeyword}
-                          onChange={(e) => setCustomMatchKeyword(e.target.value)}
-                          placeholder="Text to match in the theatre listing"
-                          className="w-full px-3 py-2 rounded-lg bg-zinc-900/90 border border-white/[0.07] text-sm text-white focus:border-violet-400 focus:outline-none"
-                        />
-                      </div>
+                ) : (
+                  <div className="custom-fields">
+                    <div className="form-grid custom-grid">
+                      <div className="field"><label htmlFor="custom-city">City</label><input id="custom-city" type="text" required value={customCitySlug} onChange={(e) => setCustomCitySlug(e.target.value)} placeholder="e.g. Bangalore" /></div>
+                      <div className="field"><label htmlFor="custom-theatre-code">Theatre code</label><input id="custom-theatre-code" type="text" required value={customTheatreCode} onChange={(e) => setCustomTheatreCode(e.target.value)} placeholder="e.g. PVRM" /></div>
+                      <div className="field"><label htmlFor="custom-theatre-name">Theatre name</label><input id="custom-theatre-name" type="text" required value={customTheatreName} onChange={(e) => setCustomTheatreName(e.target.value)} placeholder="e.g. PVR: Lulu Mall" /></div>
+                      <div className="field"><label htmlFor="custom-match-keyword">Listing match keyword</label><input id="custom-match-keyword" type="text" required value={customMatchKeyword} onChange={(e) => setCustomMatchKeyword(e.target.value)} placeholder="Text in the theatre listing" /></div>
                     </div>
                   </div>
                 )}
 
-                {/* Channels & Submit Footer */}
-                <div className="flex flex-wrap items-center justify-between gap-4 pt-2 border-t border-white/[0.05]">
-                  <div className="flex items-center gap-4">
-                    <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={notifyTelegram}
-                        onChange={(e) => setNotifyTelegram(e.target.checked)}
-                        className="accent-violet-500 rounded"
-                      />
-                      <Send className="w-3.5 h-3.5 text-sky-400" /> Telegram Bot
-                    </label>
-                    <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={notifyEmail}
-                        onChange={(e) => setNotifyEmail(e.target.checked)}
-                        className="accent-violet-500 rounded"
-                      />
-                      <Mail className="w-3.5 h-3.5 text-amber-400" /> Email Alert
-                    </label>
+                <div className="form-footer">
+                  <div className="notification-options">
+                    <label className="check-option"><input type="checkbox" checked={notifyTelegram} onChange={(e) => setNotifyTelegram(e.target.checked)} /><Send size={14} /> Telegram</label>
+                    <label className="check-option"><input type="checkbox" checked={notifyEmail} onChange={(e) => setNotifyEmail(e.target.checked)} /><Mail size={14} /> Email</label>
                   </div>
-
-                  <button
-                    type="submit"
-                    className="px-5 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-medium text-xs transition shadow-lg shadow-violet-600/25"
-                  >
-                    Start Monitoring Movie
-                  </button>
+                  <button type="submit" className="save-button">Save movie</button>
                 </div>
               </form>
             )}
           </div>
         </section>
 
-        {/* Active Watchlist Swimlanes (No Brick Grid) */}
-        <section className="space-y-2">
-          <div className="flex items-center justify-between px-2 mb-3">
-            <h2 className="text-xs font-medium uppercase tracking-wider text-slate-400">
-              Active Watchlist ({trackers.length})
-            </h2>
-            <span className="text-[11px] text-slate-500">
-              Worker polls every 2 mins 
-            </span>
+        <section className="watchlist-section" aria-labelledby="watchlist-heading">
+          <div className="watchlist-heading">
+            <h2 id="watchlist-heading">Watching <span>{trackers.length}</span></h2>
+            <p><span className="poll-dot" /> Updates every 2 minutes</p>
           </div>
 
           {loading ? (
-            <div className="py-12 text-center text-sm text-slate-500">
-              Loading watchlist...
-            </div>
+            <div className="empty-state">Loading your watchlist…</div>
           ) : trackers.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-white/[0.07] py-14 text-center">
-              <p className="text-sm text-slate-400">
-                No movies being tracked yet. Paste a BookMyShow link above to begin.
-              </p>
-            </div>
+            <div className="empty-state">No movies yet. Add one above to get started.</div>
           ) : (
-            <div className="divide-y divide-white/[0.06] rounded-2xl bg-zinc-900/40 backdrop-blur-md border border-white/[0.06] overflow-hidden">
+            <div className="watchlist">
               {trackers.map((tracker) => {
                 const formattedDate = `${tracker.targetDate.slice(6, 8)}/${tracker.targetDate.slice(4, 6)}/${tracker.targetDate.slice(0, 4)}`;
                 const bmsUrl = `https://in.bookmyshow.com/buytickets/${tracker.movieSlug}-${tracker.citySlug}/movie-${tracker.cityCode.toLowerCase()}-${tracker.movieCode}-MT/${tracker.targetDate}`;
-
                 return (
-                  <div
-                    key={tracker._id}
-                    className="p-5 hover:bg-white/[0.02] transition flex flex-col lg:flex-row lg:items-center justify-between gap-4"
-                  >
-                    {/* Left Column: Movie Info & Tier 1 City Status */}
-                    <div className="space-y-1.5 min-w-[260px]">
-                      <div className="flex items-center gap-2.5">
-                        {/* Live Status Pulse Dot */}
-                        <span className="relative flex h-2.5 w-2.5">
-                          {tracker.status === "watching" && (
-                            <span
-                              className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${tracker.cityBookingOpen ? "bg-emerald-400" : "bg-amber-400"
-                                }`}
-                            />
-                          )}
-                          <span
-                            className={`relative inline-flex rounded-full h-2.5 w-2.5 ${tracker.status === "paused"
-                              ? "bg-slate-600"
-                              : tracker.cityBookingOpen
-                                ? "bg-emerald-400"
-                                : "bg-amber-400"
-                              }`}
-                          />
-                        </span>
-
-                        <h3 className="font-semibold text-white text-base tracking-tight">
-                          {tracker.movieTitle}
-                        </h3>
-
-                        <span className="text-[11px] font-mono text-slate-500">
-                          {tracker.movieCode}
-                        </span>
+                  <article key={tracker._id} className="watch-row">
+                    <div className="movie-info">
+                      <div className="movie-heading">
+                        <span className={`status-dot ${tracker.status === "paused" ? "paused" : tracker.cityBookingOpen ? "open" : ""}`} />
+                        <h3>{tracker.movieTitle}</h3>
+                        <span className="movie-code">{tracker.movieCode}</span>
                       </div>
-
-                      <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400 pl-5">
-                        <span className="flex items-center gap-1">
-                          <Calendar className="w-3.5 h-3.5 text-slate-500" />
-                          {formattedDate}
-                        </span>
-
-                        {/* Tier 1 Badge: City Status */}
-                        <span
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium ${tracker.cityBookingOpen
-                            ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"
-                            : "bg-amber-500/10 text-amber-300/90 border border-amber-500/20"
-                            }`}
-                        >
-                          <MapPin className="w-3 h-3" />
-                          {tracker.cityBookingOpen
-                            ? `${tracker.citySlug} City Open (Notified)`
-                            : `Waiting for ${tracker.citySlug}`}
+                      <div className="movie-meta">
+                        <span><Calendar size={14} /> {formattedDate}</span>
+                        <span><MapPin size={14} /> {tracker.citySlug}</span>
+                        <span className={tracker.cityBookingOpen ? "booking-status open-status" : "booking-status"}>
+                          {tracker.cityBookingOpen ? "Tickets open" : tracker.status === "paused" ? "Paused" : "Waiting"}
                         </span>
                       </div>
                     </div>
 
-                    {/* Middle Column: Inline Stream of Watched Theatres (Tier 2) */}
-                    <div className="flex flex-wrap items-center gap-2 flex-1 lg:justify-end">
+                    <div className="theatre-list">
                       {tracker.targetTheatres.map((theatre, idx) => (
-                        <a
-                          key={idx}
-                          href={bmsUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className={`group px-3 py-1.5 rounded-full text-xs transition-all flex items-center gap-1.5 ${theatre.isNotified
-                            ? "bg-violet-500/20 text-violet-200 border border-violet-400/40 shadow-sm shadow-violet-500/10"
-                            : "bg-zinc-800/70 text-slate-400 border border-white/[0.05] hover:border-white/15"
-                            }`}
-                        >
-                          {theatre.isNotified ? (
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                          ) : (
-                            <Clock className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                          )}
+                        <a key={idx} href={bmsUrl} target="_blank" rel="noreferrer" className={theatre.isNotified ? "theatre-link theatre-open" : "theatre-link"}>
+                          {theatre.isNotified ? <CheckCircle2 size={14} /> : <Clock size={14} />}
                           <span>{theatre.theatreName}</span>
-                          {theatre.showtimes?.length > 0 && (
-                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-violet-400/20 text-violet-200">
-                              {theatre.showtimes.length} shows
-                            </span>
-                          )}
+                          {theatre.showtimes?.length > 0 && <span className="show-count">{theatre.showtimes.length} shows</span>}
                         </a>
                       ))}
                     </div>
 
-                    {/* Right Column: Quick Controls */}
-                    <div className="flex items-center gap-1.5 self-end lg:self-center shrink-0">
-                      <a
-                        href={bmsUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        title="Open BMS Page"
-                        className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-zinc-800/80 transition"
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                      </a>
-                      <button
-                        onClick={() => handleTogglePause(tracker)}
-                        title={tracker.status === "paused" ? "Resume" : "Pause"}
-                        className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-zinc-800/80 transition"
-                      >
-                        {tracker.status === "paused" ? (
-                          <Play className="w-4 h-4 text-emerald-400" />
-                        ) : (
-                          <Pause className="w-4 h-4" />
-                        )}
+                    <div className="row-actions">
+                      <a href={bmsUrl} target="_blank" rel="noreferrer" title="Open BookMyShow" aria-label={`Open BookMyShow for ${tracker.movieTitle}`} className="icon-button"><ExternalLink size={16} /></a>
+                      <button onClick={() => handleTogglePause(tracker)} title={tracker.status === "paused" ? "Resume watching" : "Pause watching"} aria-label={tracker.status === "paused" ? "Resume watching" : "Pause watching"} className="icon-button">
+                        {tracker.status === "paused" ? <Play size={16} /> : <Pause size={16} />}
                       </button>
-                      <button
-                        onClick={() => handleDelete(tracker._id)}
-                        title="Remove Tracker"
-                        className="p-2 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <button onClick={() => handleDelete(tracker._id)} title="Remove from watchlist" aria-label={`Remove ${tracker.movieTitle}`} className="icon-button remove-button"><Trash2 size={16} /></button>
                     </div>
-                  </div>
+                  </article>
                 );
               })}
             </div>
@@ -621,67 +371,31 @@ export default function BMSNotifierDashboard() {
         </section>
       </div>
 
-      {/* Slide-Over Notification Log Drawer */}
       {drawerOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-[#111827] border-l border-white/[0.08] h-full p-6 flex flex-col justify-between">
-            <div className="overflow-y-auto space-y-6">
-              <div className="flex items-center justify-between border-b border-white/[0.07] pb-4">
-                <div>
-                  <h3 className="text-sm font-semibold text-white">
-                    Dispatched Alerts History
-                  </h3>
-                  <p className="text-xs text-slate-400">
-                    Chronological log of Telegram & Email triggers
-                  </p>
-                </div>
-                <button
-                  onClick={() => setDrawerOpen(false)}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-zinc-800"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              {allLogs.length === 0 ? (
-                <p className="text-xs text-slate-500 text-center py-12">
-                  No alerts fired yet. As soon as Kochi or a watched theatre opens, it will appear here.
-                </p>
-              ) : (
-                <div className="relative border-l border-white/10 ml-3 space-y-6 pl-5">
-                  {allLogs.map((log, index) => (
-                    <div key={index} className="relative group">
-                      <span
-                        className={`absolute -left-[25px] top-1 h-2.5 w-2.5 rounded-full ${log.type === "CITY_OPEN" ? "bg-emerald-400" : "bg-violet-400"
-                          }`}
-                      />
-                      <div className="text-[11px] text-slate-500">
-                        {new Date(log.timestamp).toLocaleString()}
-                      </div>
-                      <div className="text-xs font-medium text-white mt-0.5">
-                        {log.movieTitle}
-                      </div>
-                      <div className="text-xs text-slate-300 mt-0.5">
-                        {log.message}
-                      </div>
-                      {log.bookingUrl && (
-                        <a
-                          href={log.bookingUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 text-[11px] text-violet-400 hover:underline mt-1"
-                        >
-                          Direct Booking Page <ExternalLink className="w-3 h-3" />
-                        </a>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
+        <div className="drawer-backdrop" onClick={() => setDrawerOpen(false)}>
+          <aside className="alert-drawer" onClick={(e) => e.stopPropagation()} aria-label="Alert history" role="dialog" aria-modal="true">
+            <div className="drawer-heading">
+              <div><h2>Alert history</h2><p>Recent booking notifications</p></div>
+              <button onClick={() => setDrawerOpen(false)} aria-label="Close alert history" className="icon-button"><X size={18} /></button>
             </div>
-          </div>
+            {allLogs.length === 0 ? (
+              <div className="drawer-empty">No alerts yet.</div>
+            ) : (
+              <div className="alert-list">
+                {allLogs.map((log, index) => (
+                  <article key={`${log.timestamp}-${index}`} className="alert-item">
+                    <time>{new Date(log.timestamp).toLocaleString()}</time>
+                    <h3>{log.movieTitle}</h3>
+                    <p>{log.message}</p>
+                    {log.bookingUrl && <a href={log.bookingUrl} target="_blank" rel="noreferrer">Open booking page <ExternalLink size={14} /></a>}
+                  </article>
+                ))}
+              </div>
+            )}
+          </aside>
         </div>
       )}
-    </div>
+      <Toaster position="bottom-right"  theme="dark"/>
+    </main>
   );
-}
+}   
