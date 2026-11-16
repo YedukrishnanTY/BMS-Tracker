@@ -330,7 +330,7 @@ export default function BMSNotifierDashboard() {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <label className={`text-[11px] uppercase tracking-wider ${theatreMode === "custom" ? "text-slate-600" : "text-slate-400"}`}>
-                      Tier 2: Watch Specific Kochi Theatres (Tap to toggle)
+                       Watch Specific Kochi Theatres
                     </label>
                     {theatreMode === "presets" && (
                       <span className="text-[11px] text-violet-400">
@@ -479,7 +479,7 @@ export default function BMSNotifierDashboard() {
               Active Watchlist ({trackers.length})
             </h2>
             <span className="text-[11px] text-slate-500">
-              Worker polls every 15 mins • Tier 1 (City) + Tier 2 (Theatres)
+              Worker polls every 2 mins 
             </span>
           </div>
 
