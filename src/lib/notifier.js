@@ -61,11 +61,18 @@ export async function triggerNotifications({
     bookingUrl,
 }) {
     const formattedDate = `${tracker.targetDate.slice(6, 8)}/${tracker.targetDate.slice(4, 6)}/${tracker.targetDate.slice(0, 4)}`;
+    const cityUpper = tracker.citySlug.toUpperCase();
     const tasks = [];
 
     if (tier === "CITY") {
-        const title = `Bookings Open in ${tracker.citySlug.toUpperCase()}!`;
-        const body = `*${tracker.movieTitle}* tickets are now live in *${tracker.citySlug.toUpperCase()}* for *${formattedDate}*.\n\nWe are still watching your selected theatres.`;
+        const title = `🟢 BOOKINGS LIVE • ${cityUpper}`;
+        const body = [
+            `🎬 *${tracker.movieTitle}*`,
+            `📅 *Date:* ${formattedDate}`,
+            `📍 *City:* ${cityUpper}`,
+            ``,
+            `⏳ _Tickets are live in your city! We're still actively watching your preferred theatres._`,
+        ].join("\n");
 
         if (tracker.notifyTelegram) {
             tasks.push(sendTelegramAlert({ title, body, bookingUrl }));
@@ -73,17 +80,27 @@ export async function triggerNotifications({
         if (tracker.notifyEmail) {
             tasks.push(
                 sendEmailAlert({
-                    subject: `🟢 [${tracker.citySlug.toUpperCase()}] ${tracker.movieTitle} Bookings Started!`,
-                    heading: `${tracker.movieTitle} is now live in ${tracker.citySlug.toUpperCase()}`,
+                    subject: `🟢 [${cityUpper}] ${tracker.movieTitle} Bookings Started!`,
+                    heading: `${tracker.movieTitle} is now live in ${cityUpper}`,
                     details: `Bookings have officially opened in ${tracker.citySlug} for ${formattedDate}. Your specific theatres are still being monitored.`,
                     bookingUrl,
                 })
             );
         }
     } else if (tier === "THEATRE") {
-        const showsText = showtimes.length ? `\n🕒 *Shows:* ${showtimes.join(", ")}` : "";
-        const title = `${theatreName} Bookings Open!`;
-        const body = `*${tracker.movieTitle}* is now booking at *${theatreName}* for *${formattedDate}*!${showsText}`;
+        const title = `🎟️ TICKETS OPEN • ${theatreName.toUpperCase()}`;
+        const showsSection = showtimes.length
+            ? `\n🕒 *Available Shows:*\n${showtimes.map((time) => `   • \`${time}\``).join("\n")}`
+            : "";
+
+        const body = [
+            `🎬 *${tracker.movieTitle}*`,
+            `🏛️ *Theatre:* ${theatreName}`,
+            `📅 *Date:* ${formattedDate}`,
+            showsSection,
+        ]
+            .filter(Boolean)
+            .join("\n");
 
         if (tracker.notifyTelegram) {
             tasks.push(sendTelegramAlert({ title, body, bookingUrl }));
@@ -93,8 +110,9 @@ export async function triggerNotifications({
                 sendEmailAlert({
                     subject: `🎟️ [${theatreName}] ${tracker.movieTitle} Tickets Open!`,
                     heading: `${theatreName} just opened bookings!`,
-                    details: `Tickets for ${tracker.movieTitle} on ${formattedDate} are now available at ${theatreName}. ${showtimes.length ? `Available slots: ${showtimes.join(", ")}` : ""
-                        }`,
+                    details: `Tickets for ${tracker.movieTitle} on ${formattedDate} are now available at ${theatreName}. ${
+                        showtimes.length ? `Available slots: ${showtimes.join(", ")}` : ""
+                    }`,
                     bookingUrl,
                 })
             );
